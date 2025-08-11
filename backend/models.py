@@ -20,3 +20,12 @@ class CourseChunk(BaseModel):
     course_title: str                   # Which course this chunk belongs to
     lesson_number: Optional[int] = None # Which lesson this chunk is from
     chunk_index: int                    # Position of this chunk in the document
+
+class SourceMetadata(BaseModel):
+    """Represents source metadata for UI display"""
+    course_title: str                    # Course name
+    lesson_number: Optional[int] = None  # Lesson number if applicable
+    lesson_link: Optional[str] = None    # Link to the original lesson
+    content_preview: str                 # Preview of the source content
+    chunk_index: int                     # Chunk position in document
+    display_text: str                    # Human-readable display text

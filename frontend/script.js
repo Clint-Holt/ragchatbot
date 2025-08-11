@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     courseTitles = document.getElementById('courseTitles');
     
     setupEventListeners();
+    setupModalEventListeners();
     createNewSession();
     loadCourseStats();
 });
@@ -122,17 +123,37 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     let html = `<div class="message-content">${displayContent}</div>`;
     
     if (sources && sources.length > 0) {
+        const sourceLinks = sources.map((source, index) => {
+            return `<span class="source-link" data-source-index="${index}" data-message-id="${messageId}">
+                ${escapeHtml(source.display_text)}
+                <svg class="source-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                </svg>
+            </span>`;
+        }).join('');
+        
         html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+                <div class="sources-content">${sourceLinks}</div>
             </details>
         `;
+        
+        // Store sources data for modal access
+        messageDiv.setAttribute('data-sources', JSON.stringify(sources));
     }
     
     messageDiv.innerHTML = html;
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Add event listeners for source links
+    if (sources && sources.length > 0) {
+        messageDiv.querySelectorAll('.source-link').forEach(link => {
+            link.addEventListener('click', handleSourceLinkClick);
+        });
+    }
     
     return messageId;
 }
@@ -188,4 +209,84 @@ async function loadCourseStats() {
             courseTitles.innerHTML = '<span class="error">Failed to load courses</span>';
         }
     }
+}
+
+// Source Modal Functions
+function handleSourceLinkClick(event) {
+    const sourceIndex = parseInt(event.currentTarget.getAttribute('data-source-index'));
+    const messageId = event.currentTarget.getAttribute('data-message-id');
+    const messageElement = document.getElementById(`message-${messageId}`);
+    
+    if (messageElement) {
+        const sourcesData = JSON.parse(messageElement.getAttribute('data-sources'));
+        const source = sourcesData[sourceIndex];
+        showSourceModal(source);
+    }
+}
+
+function showSourceModal(source) {
+    const modal = document.getElementById('sourceModal');
+    const title = document.getElementById('sourceModalTitle');
+    const course = document.getElementById('sourceCourse');
+    const lessonField = document.getElementById('sourceLessonField');
+    const lesson = document.getElementById('sourceLesson');
+    const preview = document.getElementById('sourcePreview');
+    const originalLink = document.getElementById('sourceOriginalLink');
+    
+    // Set modal content
+    title.textContent = 'Source Details';
+    course.textContent = source.course_title;
+    
+    if (source.lesson_number !== null && source.lesson_number !== undefined) {
+        lessonField.style.display = 'block';
+        lesson.textContent = `Lesson ${source.lesson_number}`;
+    } else {
+        lessonField.style.display = 'none';
+    }
+    
+    preview.textContent = source.content_preview;
+    
+    if (source.lesson_link) {
+        originalLink.href = source.lesson_link;
+        originalLink.style.display = 'inline-flex';
+    } else {
+        originalLink.style.display = 'none';
+    }
+    
+    // Show modal
+    modal.style.display = 'flex';
+    
+    // Focus management
+    const closeButton = document.getElementById('sourceModalClose');
+    closeButton.focus();
+}
+
+function hideSourceModal() {
+    const modal = document.getElementById('sourceModal');
+    modal.style.display = 'none';
+}
+
+// Setup modal event listeners
+function setupModalEventListeners() {
+    const modal = document.getElementById('sourceModal');
+    const closeButton = document.getElementById('sourceModalClose');
+    const cancelButton = document.getElementById('sourceModalCancel');
+    
+    // Close modal on button clicks
+    closeButton.addEventListener('click', hideSourceModal);
+    cancelButton.addEventListener('click', hideSourceModal);
+    
+    // Close modal on backdrop click
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            hideSourceModal();
+        }
+    });
+    
+    // Close modal on escape key
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.style.display === 'flex') {
+            hideSourceModal();
+        }
+    });
 }

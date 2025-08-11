@@ -11,6 +11,7 @@ import os
 
 from config import config
 from rag_system import RAGSystem
+from models import SourceMetadata
 
 # Initialize FastAPI app
 app = FastAPI(title="Course Materials RAG System", root_path="")
@@ -43,7 +44,7 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     """Response model for course queries"""
     answer: str
-    sources: List[str]
+    sources: List[SourceMetadata]
     session_id: str
 
 class CourseStats(BaseModel):
@@ -65,9 +66,23 @@ async def query_documents(request: QueryRequest):
         # Process query using RAG system
         answer, sources = rag_system.query(request.query, session_id)
         
+        # Convert source dictionaries to SourceMetadata objects
+        source_metadata = []
+        for source in sources:
+            if isinstance(source, dict):
+                source_metadata.append(SourceMetadata(**source))
+            else:
+                # Handle legacy string sources (fallback)
+                source_metadata.append(SourceMetadata(
+                    course_title="Unknown",
+                    content_preview=str(source)[:200],
+                    chunk_index=0,
+                    display_text=str(source)
+                ))
+        
         return QueryResponse(
             answer=answer,
-            sources=sources,
+            sources=source_metadata,
             session_id=session_id
         )
     except Exception as e:
@@ -101,7 +116,6 @@ async def startup_event():
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
-from pathlib import Path
 
 
 class DevStaticFiles(StaticFiles):
